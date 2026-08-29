@@ -1,0 +1,2 @@
+# Escalado
+Escala imagen
