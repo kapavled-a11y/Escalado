@@ -284,6 +284,52 @@
     font-weight: 600;
   }
 
+  .custom-ratio {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .custom-ratio.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .custom-ratio .colon { font-weight: 700; }
+  .custom-ratio input[type="number"] {
+    width: 30px;
+    border: none;
+    background: transparent;
+    text-align: center;
+    font-size: 13px;
+    font-weight: inherit;
+    color: inherit;
+    padding: 2px 0;
+    -moz-appearance: textfield;
+  }
+  .custom-ratio input[type="number"]::-webkit-inner-spin-button,
+  .custom-ratio input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .custom-ratio input[type="number"]:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .hint-text {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
   .dim-row { display: flex; align-items: flex-end; gap: 10px; }
 
   .field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
@@ -475,8 +521,15 @@
         <button class="pill" data-ratio="16/9">16:9</button>
         <button class="pill" data-ratio="9/16">9:16</button>
         <button class="pill" data-ratio="3/2">3:2</button>
+        <button class="pill" data-ratio="2/3">2:3</button>
+        <label class="custom-ratio" id="custom-ratio">
+          <input type="number" id="ratio-custom-w" min="1" max="99" step="1" placeholder="5" aria-label="Ancho de la proporción personalizada">
+          <span class="colon">:</span>
+          <input type="number" id="ratio-custom-h" min="1" max="99" step="1" placeholder="4" aria-label="Alto de la proporción personalizada">
+        </label>
         <button class="pill" data-ratio="free">Libre</button>
       </div>
+      <p class="hint-text">Escribe tu propia proporción (por ejemplo 5 : 4) en el recuadro, o toca "Libre" para fijar ancho y alto por separado, sin conservar ninguna proporción entre ellos.</p>
     </section>
 
     <section class="panel section">
@@ -544,6 +597,9 @@
     metaOriginal: document.getElementById('meta-original'),
     metaOutput: document.getElementById('meta-output'),
     ratioPills: document.getElementById('ratio-pills'),
+    customRatioBox: document.getElementById('custom-ratio'),
+    ratioCustomW: document.getElementById('ratio-custom-w'),
+    ratioCustomH: document.getElementById('ratio-custom-h'),
     widthInput: document.getElementById('width-input'),
     heightInput: document.getElementById('height-input'),
     lockBtn: document.getElementById('lock-btn'),
@@ -645,6 +701,8 @@
         state.offsetY = 0;
         state.targetW = img.naturalWidth;
         state.targetH = img.naturalHeight;
+        els.ratioCustomW.value = '';
+        els.ratioCustomH.value = '';
 
         if (/png/i.test(file.type)) state.format = 'png';
         else if (/webp/i.test(file.type)) state.format = 'webp';
@@ -768,9 +826,13 @@
 
   function syncRatioButtons() {
     var pills = els.ratioPills.querySelectorAll('.pill');
+    var isPreset = false;
     pills.forEach(function (p) {
-      p.setAttribute('aria-pressed', p.dataset.ratio === state.ratioMode ? 'true' : 'false');
+      var match = p.dataset.ratio === state.ratioMode;
+      p.setAttribute('aria-pressed', match ? 'true' : 'false');
+      if (match) isPreset = true;
     });
+    els.customRatioBox.classList.toggle('active', !isPreset);
     els.lockBtn.hidden = state.ratioMode !== 'free';
   }
 
@@ -780,6 +842,8 @@
     state.ratioMode = btn.dataset.ratio;
     state.offsetX = 0;
     state.offsetY = 0;
+    els.ratioCustomW.value = '';
+    els.ratioCustomH.value = '';
     var ratio = currentRatioValue();
     if (ratio) {
       state.targetH = Math.round(state.targetW / ratio);
@@ -788,6 +852,24 @@
     syncRatioButtons();
     requestRender();
   });
+
+  function applyCustomRatio() {
+    if (!state.img) return;
+    var w = parseFloat(els.ratioCustomW.value);
+    var h = parseFloat(els.ratioCustomH.value);
+    if (!w || !h || w <= 0 || h <= 0) return;
+    state.ratioMode = w + '/' + h;
+    state.offsetX = 0;
+    state.offsetY = 0;
+    var ratio = currentRatioValue();
+    state.targetH = Math.round(state.targetW / ratio);
+    els.heightInput.value = state.targetH;
+    syncRatioButtons();
+    requestRender();
+  }
+
+  els.ratioCustomW.addEventListener('input', applyCustomRatio);
+  els.ratioCustomH.addEventListener('input', applyCustomRatio);
 
   // ---------- Width / height inputs ----------
 
@@ -960,6 +1042,8 @@
     els.qualityValue.textContent = '85';
     els.widthInput.value = state.targetW;
     els.heightInput.value = state.targetH;
+    els.ratioCustomW.value = '';
+    els.ratioCustomH.value = '';
     syncRatioButtons();
     syncLockButton();
     clearStatus();
