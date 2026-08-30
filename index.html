@@ -1,20 +1,971 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foto a Medida</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
 
-    <title>Kapavled</title>
-    <link rel="stylesheet" href="Estilos.css">
+  :root {
+    --bg: #eef1f5;
+    --surface: #ffffff;
+    --surface-2: #f3f6f9;
+    --border: #d7dee6;
+    --border-strong: #b9c3cd;
+    --text: #171b21;
+    --text-muted: #5c6773;
+    --accent: #0f6e5b;
+    --accent-hover: #0b5747;
+    --accent-contrast: #ffffff;
+    --accent-soft: #e0f0ec;
+    --warn: #9a5b17;
+    --warn-soft: #f7e9d7;
+    --danger: #a92419;
+    --danger-soft: #fbe4e1;
+    --checker: #e2e7ec;
+    --shadow: rgba(23, 27, 33, 0.10);
+    --focus: #0f6e5b;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10141a;
+      --surface: #171d24;
+      --surface-2: #1c232b;
+      --border: #2b333d;
+      --border-strong: #3a4552;
+      --text: #edf1f5;
+      --text-muted: #9aa7b5;
+      --accent: #35b897;
+      --accent-hover: #4fcaac;
+      --accent-contrast: #05201a;
+      --accent-soft: #163530;
+      --warn: #e0a24a;
+      --warn-soft: #2e2416;
+      --danger: #ef6961;
+      --danger-soft: #2e1a18;
+      --checker: #212a33;
+      --shadow: rgba(0, 0, 0, 0.45);
+      --focus: #4fcaac;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #10141a;
+    --surface: #171d24;
+    --surface-2: #1c232b;
+    --border: #2b333d;
+    --border-strong: #3a4552;
+    --text: #edf1f5;
+    --text-muted: #9aa7b5;
+    --accent: #35b897;
+    --accent-hover: #4fcaac;
+    --accent-contrast: #05201a;
+    --accent-soft: #163530;
+    --warn: #e0a24a;
+    --warn-soft: #2e2416;
+    --danger: #ef6961;
+    --danger-soft: #2e1a18;
+    --checker: #212a33;
+    --shadow: rgba(0, 0, 0, 0.45);
+    --focus: #4fcaac;
+  }
+
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { font-family: "Archivo", system-ui, sans-serif; text-wrap: balance; margin: 0; }
+
+  .num, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  button, input, select { font-family: inherit; color: inherit; }
+
+  .app-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 28px 16px 72px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  @media (min-width: 900px) {
+    .app-shell {
+      grid-template-columns: minmax(360px, 1fr) 400px;
+      align-items: start;
+      padding: 40px 32px 96px;
+      gap: 32px;
+    }
+  }
+
+  header.page-head {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  header.page-head h1 {
+    font-size: clamp(24px, 4vw, 32px);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  header.page-head p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 14.5px;
+    max-width: 60ch;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px var(--shadow);
+  }
+
+  /* ---------- Preview column ---------- */
+
+  .preview-col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  @media (min-width: 900px) {
+    .preview-col { position: sticky; top: 24px; }
+  }
+
+  .dropzone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 18px;
+    border: 1.5px dashed var(--border-strong);
+    border-radius: 14px;
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color .15s ease, color .15s ease, background .15s ease;
+  }
+
+  .dropzone:hover { border-color: var(--accent); color: var(--text); }
+  .dropzone.has-image { justify-content: space-between; }
+  .dropzone input[type="file"] { display: none; }
+
+  .dropzone .dz-label { display: flex; align-items: center; gap: 10px; }
+  .dropzone .dz-icon { flex: none; opacity: .8; }
+  .dropzone .dz-swap {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    background: var(--surface);
+  }
+
+  .canvas-wrap {
+    position: relative;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background-color: var(--surface-2);
+    background-image:
+      linear-gradient(45deg, var(--checker) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--checker) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--checker) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--checker) 75%);
+    background-size: 22px 22px;
+    background-position: 0 0, 0 11px, 11px -11px, -11px 0px;
+    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+  }
+
+  .canvas-wrap.empty {
+    min-height: 260px;
+    color: var(--text-muted);
+    font-size: 14px;
+    text-align: center;
+    padding: 24px;
+  }
+
+  .canvas-wrap canvas {
+    max-width: 100%;
+    max-height: 62vh;
+    display: block;
+    cursor: grab;
+  }
+  .canvas-wrap canvas:active { cursor: grabbing; }
+
+  .pan-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(23, 27, 33, 0.62);
+    color: #fff;
+    font-size: 11.5px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .2s ease;
+  }
+  .canvas-wrap.show-hint .pan-hint { opacity: 1; }
+
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    padding: 0 2px;
+  }
+  .meta-row .num { color: var(--text); }
+
+  /* ---------- Controls column ---------- */
+
+  .controls-col { display: flex; flex-direction: column; gap: 16px; }
+
+  .section { padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+  .section h2 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .pill-row { display: flex; flex-wrap: wrap; gap: 7px; }
+
+  .pill {
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .pill:hover { border-color: var(--border-strong); }
+  .pill[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
+    font-weight: 600;
+  }
+
+  .dim-row { display: flex; align-items: flex-end; gap: 10px; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+  .field label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+
+  .field input[type="number"] {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface-2);
+    padding: 9px 10px;
+    font-size: 15px;
+    width: 100%;
+  }
+  .field input[type="number"]:focus-visible,
+  button:focus-visible,
+  .pill:focus-visible,
+  select:focus-visible,
+  input[type="range"]:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .lock-btn {
+    flex: none;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface-2);
+    cursor: pointer;
+    margin-bottom: 1px;
+  }
+  .lock-btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+  .quick-sizes { display: flex; gap: 7px; flex-wrap: wrap; }
+  .quick-sizes button {
+    border: 1px dashed var(--border-strong);
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: 8px;
+    padding: 5px 9px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .quick-sizes button:hover { color: var(--text); border-color: var(--accent); }
+
+  .format-row { display: flex; gap: 8px; }
+  .format-row button {
+    flex: 1;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    padding: 9px 8px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-muted);
+  }
+  .format-row button[aria-pressed="true"] {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .quality-row { display: flex; flex-direction: column; gap: 6px; }
+  .quality-row .quality-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); }
+  .quality-row .quality-head .num { color: var(--text); font-weight: 600; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--border);
+    accent-color: var(--accent);
+  }
+
+  .size-estimate {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding-top: 2px;
+    border-top: 1px dashed var(--border);
+    margin-top: 4px;
+    padding-top: 10px;
+  }
+  .size-estimate .num { font-size: 15px; color: var(--text); font-weight: 600; }
+  .size-estimate.over .num { color: var(--danger); }
+
+  .actions { display: flex; flex-direction: column; gap: 10px; }
+
+  .btn-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
+    border-radius: 11px;
+    padding: 13px 16px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .12s ease, opacity .12s ease;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 11px;
+    padding: 11px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--border-strong); }
+
+  .status-msg {
+    font-size: 13px;
+    border-radius: 9px;
+    padding: 9px 11px;
+    display: none;
+  }
+  .status-msg.show { display: block; }
+  .status-msg.ok { background: var(--accent-soft); color: var(--accent); }
+  .status-msg.warn { background: var(--warn-soft); color: var(--warn); }
+  .status-msg.err { background: var(--danger-soft); color: var(--danger); }
+
+  .empty-state-icon { opacity: .55; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+</style>
 </head>
-
 <body>
-    
-    <marquee behavior="scroll" direction="left" scrollamount="10" style="color: #aad5af;">
-        <h4>Dolar: 460.03 - Euro. 510,40 - Yen: 3.60 </h4>
-    </marquee>
 
+<div class="app-shell">
+  <header class="page-head">
+    <span class="eyebrow">Editor de imagen en tu navegador</span>
+    <h1>Foto a Medida</h1>
+    <p>Elige una imagen de tu galería y ajusta su tamaño, calidad y proporción antes de guardarla. Todo ocurre en tu propio dispositivo — la imagen no se envía a ningún servidor, y este archivo funciona sin conexión a internet ni cuenta de ningún tipo (solo necesita internet la primera vez, para cargar las tipografías).</p>
+  </header>
+
+  <div class="preview-col">
+    <label class="dropzone" id="dropzone">
+      <span class="dz-label">
+        <svg class="dz-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2.2"/><circle cx="9" cy="10.5" r="1.6"/><path d="M21 16.5l-5.7-5.2a1.6 1.6 0 0 0-2.15.02L3 19"/></svg>
+        <span id="dz-text">Elegir imagen de la galería</span>
+      </span>
+      <span class="dz-swap" id="dz-swap" hidden>Cambiar</span>
+      <input type="file" accept="image/*" id="file-input">
+    </label>
+
+    <div class="canvas-wrap empty" id="canvas-wrap">
+      <div id="empty-msg">Tu imagen aparecerá aquí.<br>Podrás arrastrarla para elegir qué parte conservar al recortar.</div>
+      <canvas id="canvas" hidden></canvas>
+      <span class="pan-hint" id="pan-hint">Arrastra para reencuadrar</span>
+    </div>
+
+    <div class="meta-row" id="meta-row" hidden>
+      <span>Original: <span class="num" id="meta-original">—</span></span>
+      <span>Salida: <span class="num" id="meta-output">—</span></span>
+    </div>
+  </div>
+
+  <div class="controls-col">
+    <section class="panel section">
+      <h2>Proporción</h2>
+      <div class="pill-row" id="ratio-pills">
+        <button class="pill" data-ratio="original" aria-pressed="true">Original</button>
+        <button class="pill" data-ratio="1/1">1:1</button>
+        <button class="pill" data-ratio="4/3">4:3</button>
+        <button class="pill" data-ratio="3/4">3:4</button>
+        <button class="pill" data-ratio="16/9">16:9</button>
+        <button class="pill" data-ratio="9/16">9:16</button>
+        <button class="pill" data-ratio="3/2">3:2</button>
+        <button class="pill" data-ratio="free">Libre</button>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <h2>Dimensiones (px)</h2>
+      <div class="dim-row">
+        <div class="field">
+          <label for="width-input">Ancho</label>
+          <input type="number" id="width-input" min="1" max="8000" step="1">
+        </div>
+        <button class="lock-btn" id="lock-btn" aria-pressed="true" title="Bloquear proporción" aria-label="Bloquear proporción">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.6"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </button>
+        <div class="field">
+          <label for="height-input">Alto</label>
+          <input type="number" id="height-input" min="1" max="8000" step="1">
+        </div>
+      </div>
+      <div class="quick-sizes">
+        <button data-longest="480">Pequeña · 480px</button>
+        <button data-longest="1080">Mediana · 1080px</button>
+        <button data-longest="1920">Grande · 1920px</button>
+        <button id="reset-dims">Restablecer</button>
+      </div>
+    </section>
+
+    <section class="panel section">
+      <h2>Calidad y formato</h2>
+      <div class="format-row" id="format-row">
+        <button data-format="jpeg" aria-pressed="true">JPG</button>
+        <button data-format="png">PNG</button>
+        <button data-format="webp">WebP</button>
+      </div>
+      <div class="quality-row" id="quality-row">
+        <div class="quality-head"><span>Calidad</span><span class="num" id="quality-value">85</span></div>
+        <input type="range" id="quality-slider" min="1" max="100" value="85">
+      </div>
+      <div class="size-estimate" id="size-estimate">
+        <span>Tamaño estimado</span>
+        <span class="num" id="size-value">—</span>
+      </div>
+    </section>
+
+    <section class="panel section actions">
+      <button class="btn-primary" id="save-btn" disabled>Descargar imagen</button>
+      <button class="btn-ghost" id="reset-all-btn">Reiniciar todo</button>
+      <div class="status-msg" id="status-msg"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var els = {
+    fileInput: document.getElementById('file-input'),
+    dropzone: document.getElementById('dropzone'),
+    dzText: document.getElementById('dz-text'),
+    dzSwap: document.getElementById('dz-swap'),
+    canvasWrap: document.getElementById('canvas-wrap'),
+    canvas: document.getElementById('canvas'),
+    emptyMsg: document.getElementById('empty-msg'),
+    panHint: document.getElementById('pan-hint'),
+    metaRow: document.getElementById('meta-row'),
+    metaOriginal: document.getElementById('meta-original'),
+    metaOutput: document.getElementById('meta-output'),
+    ratioPills: document.getElementById('ratio-pills'),
+    widthInput: document.getElementById('width-input'),
+    heightInput: document.getElementById('height-input'),
+    lockBtn: document.getElementById('lock-btn'),
+    quickSizes: document.querySelector('.quick-sizes'),
+    resetDims: document.getElementById('reset-dims'),
+    formatRow: document.getElementById('format-row'),
+    qualityRow: document.getElementById('quality-row'),
+    qualitySlider: document.getElementById('quality-slider'),
+    qualityValue: document.getElementById('quality-value'),
+    sizeEstimate: document.getElementById('size-estimate'),
+    sizeValue: document.getElementById('size-value'),
+    saveBtn: document.getElementById('save-btn'),
+    resetAllBtn: document.getElementById('reset-all-btn'),
+    statusMsg: document.getElementById('status-msg'),
+  };
+
+  var ctx = els.canvas.getContext('2d');
+
+  var state = {
+    img: null,
+    naturalW: 0,
+    naturalH: 0,
+    fileBase: 'imagen',
+    ratioMode: 'original', // 'original' | 'free' | 'W/H' string
+    lock: true,
+    targetW: 0,
+    targetH: 0,
+    offsetX: 0, // -1..1
+    offsetY: 0,
+    format: 'jpeg',
+    quality: 85,
+  };
+
+  var MAX_DIM = 8000;
+  var sizeDebounce = null;
+  var renderRaf = null;
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  function currentRatioValue() {
+    if (state.ratioMode === 'original') return state.naturalW / state.naturalH;
+    if (state.ratioMode === 'free') return null;
+    var parts = state.ratioMode.split('/');
+    return parseFloat(parts[0]) / parseFloat(parts[1]);
+  }
+
+  function setStatus(kind, text) {
+    els.statusMsg.className = 'status-msg show ' + kind;
+    els.statusMsg.textContent = text;
+  }
+  function clearStatus() {
+    els.statusMsg.className = 'status-msg';
+    els.statusMsg.textContent = '';
+  }
+
+  // ---------- Image loading ----------
+
+  els.fileInput.addEventListener('change', function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    loadFile(file);
+  });
+
+  function loadFile(file) {
+    clearStatus();
+    setStatus('warn', 'Cargando imagen…');
+
+    var settled = false;
+    var timeoutId = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      setStatus('err', 'La imagen está tardando demasiado en cargar. Prueba con otra foto (si es HEIC/HEIF, prueba a exportarla como JPG desde tu galería) o con un navegador distinto.');
+    }, 12000);
+
+    var reader = new FileReader();
+
+    reader.onerror = function () {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      setStatus('err', 'No se pudo leer ese archivo. Prueba con otra imagen.');
+    };
+
+    reader.onload = function (ev) {
+      var img = new Image();
+
+      img.onload = function () {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+
+        state.img = img;
+        state.naturalW = img.naturalWidth;
+        state.naturalH = img.naturalHeight;
+        state.fileBase = (file.name || 'imagen').replace(/\.[^.]+$/, '');
+        state.ratioMode = 'original';
+        state.lock = true;
+        state.offsetX = 0;
+        state.offsetY = 0;
+        state.targetW = img.naturalWidth;
+        state.targetH = img.naturalHeight;
+
+        if (/png/i.test(file.type)) state.format = 'png';
+        else if (/webp/i.test(file.type)) state.format = 'webp';
+        else state.format = 'jpeg';
+
+        syncFormatButtons();
+        syncRatioButtons();
+        syncLockButton();
+        els.widthInput.value = state.targetW;
+        els.heightInput.value = state.targetH;
+
+        els.dzText.textContent = file.name || 'Imagen cargada';
+        els.dzSwap.hidden = false;
+        els.canvasWrap.classList.remove('empty');
+        els.emptyMsg.hidden = true;
+        els.canvas.hidden = false;
+        els.metaRow.hidden = false;
+        els.metaOriginal.textContent = state.naturalW + ' × ' + state.naturalH + ' px';
+        els.saveBtn.disabled = false;
+
+        clearStatus();
+        requestRender();
+      };
+
+      img.onerror = function () {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        setStatus('err', 'No se pudo mostrar esa imagen. Es posible que el formato (por ejemplo HEIC) no sea compatible con este navegador — prueba exportándola como JPG o PNG.');
+      };
+
+      img.src = ev.target.result;
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  // ---------- Rendering (crop + scale) ----------
+
+  function requestRender() {
+    if (renderRaf) cancelAnimationFrame(renderRaf);
+    renderRaf = requestAnimationFrame(render);
+  }
+
+  function render() {
+    if (!state.img) return;
+
+    var tw = clamp(Math.round(state.targetW) || 1, 1, MAX_DIM);
+    var th = clamp(Math.round(state.targetH) || 1, 1, MAX_DIM);
+
+    var sourceRatio = state.naturalW / state.naturalH;
+    var targetRatio = tw / th;
+
+    var cropW, cropH;
+    if (Math.abs(targetRatio - sourceRatio) < 0.0005) {
+      cropW = state.naturalW;
+      cropH = state.naturalH;
+    } else if (targetRatio > sourceRatio) {
+      cropW = state.naturalW;
+      cropH = cropW / targetRatio;
+    } else {
+      cropH = state.naturalH;
+      cropW = cropH * targetRatio;
+    }
+
+    var maxOffX = (state.naturalW - cropW) / 2;
+    var maxOffY = (state.naturalH - cropH) / 2;
+    var sx = maxOffX + state.offsetX * maxOffX;
+    var sy = maxOffY + state.offsetY * maxOffY;
+    sx = clamp(sx, 0, state.naturalW - cropW);
+    sy = clamp(sy, 0, state.naturalH - cropH);
+
+    els.canvas.width = tw;
+    els.canvas.height = th;
+
+    ctx.clearRect(0, 0, tw, th);
+    if (state.format === 'jpeg') {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, tw, th);
+    }
+    ctx.drawImage(state.img, sx, sy, cropW, cropH, 0, 0, tw, th);
+
+    els.metaOutput.textContent = tw + ' × ' + th + ' px';
+
+    var canPan = (cropW < state.naturalW - 0.5) || (cropH < state.naturalH - 0.5);
+    els.canvasWrap.classList.toggle('show-hint', canPan);
+
+    scheduleSizeEstimate();
+  }
+
+  // ---------- Pan / reencuadre ----------
+
+  var dragging = false, dragStartX = 0, dragStartY = 0, startOffX = 0, startOffY = 0;
+
+  els.canvas.addEventListener('pointerdown', function (e) {
+    if (!state.img) return;
+    dragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    startOffX = state.offsetX;
+    startOffY = state.offsetY;
+    els.canvas.setPointerCapture(e.pointerId);
+  });
+
+  els.canvas.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    var rect = els.canvas.getBoundingClientRect();
+    var dx = (e.clientX - dragStartX) / rect.width;
+    var dy = (e.clientY - dragStartY) / rect.height;
+    // dragging right should reveal what's to the left -> offset decreases
+    state.offsetX = clamp(startOffX - dx * 2, -1, 1);
+    state.offsetY = clamp(startOffY - dy * 2, -1, 1);
+    requestRender();
+  });
+
+  function endDrag() { dragging = false; }
+  els.canvas.addEventListener('pointerup', endDrag);
+  els.canvas.addEventListener('pointercancel', endDrag);
+
+  // ---------- Ratio pills ----------
+
+  function syncRatioButtons() {
+    var pills = els.ratioPills.querySelectorAll('.pill');
+    pills.forEach(function (p) {
+      p.setAttribute('aria-pressed', p.dataset.ratio === state.ratioMode ? 'true' : 'false');
+    });
+    els.lockBtn.hidden = state.ratioMode !== 'free';
+  }
+
+  els.ratioPills.addEventListener('click', function (e) {
+    var btn = e.target.closest('.pill');
+    if (!btn || !state.img) return;
+    state.ratioMode = btn.dataset.ratio;
+    state.offsetX = 0;
+    state.offsetY = 0;
+    var ratio = currentRatioValue();
+    if (ratio) {
+      state.targetH = Math.round(state.targetW / ratio);
+      els.heightInput.value = state.targetH;
+    }
+    syncRatioButtons();
+    requestRender();
+  });
+
+  // ---------- Width / height inputs ----------
+
+  function syncLockButton() {
+    els.lockBtn.setAttribute('aria-pressed', String(state.lock));
+  }
+
+  els.lockBtn.addEventListener('click', function () {
+    state.lock = !state.lock;
+    syncLockButton();
+  });
+
+  els.widthInput.addEventListener('input', function () {
+    var w = clamp(parseInt(els.widthInput.value, 10) || 1, 1, MAX_DIM);
+    state.targetW = w;
+    var ratio = currentRatioValue();
+    if (ratio) {
+      state.targetH = Math.round(w / ratio);
+      els.heightInput.value = state.targetH;
+    } else if (state.lock && state.naturalW && state.naturalH) {
+      state.targetH = Math.round(w * (state.naturalH / state.naturalW));
+      els.heightInput.value = state.targetH;
+    }
+    requestRender();
+  });
+
+  els.heightInput.addEventListener('input', function () {
+    var h = clamp(parseInt(els.heightInput.value, 10) || 1, 1, MAX_DIM);
+    state.targetH = h;
+    var ratio = currentRatioValue();
+    if (ratio) {
+      state.targetW = Math.round(h * ratio);
+      els.widthInput.value = state.targetW;
+    } else if (state.lock && state.naturalW && state.naturalH) {
+      state.targetW = Math.round(h * (state.naturalW / state.naturalH));
+      els.widthInput.value = state.targetW;
+    }
+    requestRender();
+  });
+
+  els.quickSizes.addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn || !state.img) return;
+    if (btn.id === 'reset-dims') {
+      state.targetW = state.naturalW;
+      state.targetH = state.naturalH;
+      state.offsetX = 0;
+      state.offsetY = 0;
+      els.widthInput.value = state.targetW;
+      els.heightInput.value = state.targetH;
+      requestRender();
+      return;
+    }
+    var longest = parseInt(btn.dataset.longest, 10);
+    var ratio = currentRatioValue() || (state.naturalW / state.naturalH);
+    if (ratio >= 1) {
+      state.targetW = longest;
+      state.targetH = Math.round(longest / ratio);
+    } else {
+      state.targetH = longest;
+      state.targetW = Math.round(longest * ratio);
+    }
+    els.widthInput.value = state.targetW;
+    els.heightInput.value = state.targetH;
+    requestRender();
+  });
+
+  // ---------- Format ----------
+
+  function syncFormatButtons() {
+    els.formatRow.querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.dataset.format === state.format ? 'true' : 'false');
+    });
+    els.qualityRow.style.opacity = state.format === 'png' ? '0.45' : '1';
+    els.qualitySlider.disabled = state.format === 'png';
+  }
+
+  els.formatRow.addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    state.format = btn.dataset.format;
+    syncFormatButtons();
+    if (state.img) requestRender();
+  });
+
+  els.qualitySlider.addEventListener('input', function () {
+    state.quality = parseInt(els.qualitySlider.value, 10);
+    els.qualityValue.textContent = state.quality;
+    if (state.img) scheduleSizeEstimate();
+  });
+
+  // ---------- Size estimate ----------
+
+  function mimeFor(format) {
+    if (format === 'png') return 'image/png';
+    if (format === 'webp') return 'image/webp';
+    return 'image/jpeg';
+  }
+
+  function scheduleSizeEstimate() {
+    if (!state.img) return;
+    if (sizeDebounce) clearTimeout(sizeDebounce);
+    sizeDebounce = setTimeout(computeSizeEstimate, 150);
+  }
+
+  function computeSizeEstimate() {
+    var mime = mimeFor(state.format);
+    var q = state.quality / 100;
+    els.canvas.toBlob(function (blob) {
+      if (!blob) { els.sizeValue.textContent = '—'; return; }
+      var kb = blob.size / 1024;
+      var text = kb > 1024 ? (kb / 1024).toFixed(2) + ' MB' : Math.round(kb) + ' KB';
+      els.sizeValue.textContent = text;
+      els.sizeEstimate.classList.toggle('over', blob.size > 16 * 1024 * 1024);
+    }, mime, q);
+  }
+
+  // ---------- Save: descarga directa del navegador (sin depender de Claude) ----------
+
+  function extFor(format) {
+    if (format === 'png') return 'png';
+    if (format === 'webp') return 'webp';
+    return 'jpg';
+  }
+
+  els.saveBtn.addEventListener('click', function () {
+    if (!state.img) return;
+    clearStatus();
+    els.saveBtn.disabled = true;
+    els.saveBtn.textContent = 'Preparando…';
+
+    var mime = mimeFor(state.format);
+    var q = state.quality / 100;
+    els.canvas.toBlob(function (blob) {
+      els.saveBtn.disabled = false;
+      els.saveBtn.textContent = 'Descargar imagen';
+
+      if (!blob) {
+        setStatus('err', 'No se pudo generar el archivo. Intenta de nuevo, o prueba con otro formato.');
+        return;
+      }
+
+      var filename = state.fileBase + '_' + els.canvas.width + 'x' + els.canvas.height + '.' + extFor(state.format);
+      var blobUrl = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Libera la URL temporal un momento después de iniciar la descarga.
+      setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 4000);
+
+      setStatus('ok', 'Descarga iniciada: ' + filename);
+    }, mime, q);
+  });
+
+  // ---------- Reset all ----------
+
+  els.resetAllBtn.addEventListener('click', function () {
+    if (!state.img) return;
+    state.ratioMode = 'original';
+    state.lock = true;
+    state.offsetX = 0;
+    state.offsetY = 0;
+    state.targetW = state.naturalW;
+    state.targetH = state.naturalH;
+    state.quality = 85;
+    els.qualitySlider.value = 85;
+    els.qualityValue.textContent = '85';
+    els.widthInput.value = state.targetW;
+    els.heightInput.value = state.targetH;
+    syncRatioButtons();
+    syncLockButton();
+    clearStatus();
+    requestRender();
+  });
+})();
+</script>
 </body>
-
 </html>
