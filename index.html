@@ -93,26 +93,33 @@
     max-width: 1180px;
     margin: 0 auto;
     padding: 28px 16px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  @media (min-width: 900px) {
+    .app-shell { padding: 40px 32px 96px; gap: 22px; }
+  }
+
+  .dual-col {
     display: grid;
     grid-template-columns: 1fr;
     gap: 24px;
   }
 
   @media (min-width: 900px) {
-    .app-shell {
+    .dual-col {
       grid-template-columns: minmax(360px, 1fr) 400px;
       align-items: start;
-      padding: 40px 32px 96px;
       gap: 32px;
     }
   }
 
   header.page-head {
-    grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    margin-bottom: 4px;
   }
 
   .eyebrow {
@@ -134,6 +141,33 @@
     color: var(--text-muted);
     font-size: 14.5px;
     max-width: 60ch;
+  }
+
+  .mode-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mode-tab {
+    background: transparent;
+    border: none;
+    padding: 10px 6px;
+    margin-right: 14px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    position: relative;
+  }
+  .mode-tab[aria-selected="true"] { color: var(--accent); }
+  .mode-tab[aria-selected="true"]::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 14px; bottom: -1px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px;
   }
 
   .panel {
@@ -222,6 +256,22 @@
     cursor: grab;
   }
   .canvas-wrap canvas:active { cursor: grabbing; }
+
+  .video-wrap { background-image: none; }
+  .video-wrap video {
+    width: 100%;
+    height: auto;
+    max-height: 62vh;
+    display: block;
+    border-radius: inherit;
+  }
+
+  .crop-overlay {
+    position: absolute;
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 0 2000px rgba(10, 14, 18, 0.5);
+    pointer-events: none;
+  }
 
   .pan-hint {
     position: absolute;
@@ -424,6 +474,34 @@
   .size-estimate .num { font-size: 15px; color: var(--text); font-weight: 600; }
   .size-estimate.over .num { color: var(--danger); }
 
+  .trim-bar {
+    position: relative;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .trim-bar-fill {
+    position: absolute;
+    top: 0; bottom: 0;
+    background: var(--accent);
+    border-radius: 999px;
+  }
+
+  .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .progress-track {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width .15s ease;
+  }
+
   .actions { display: flex; flex-direction: column; gap: 10px; }
 
   .btn-primary {
@@ -483,104 +561,249 @@
 
 <div class="app-shell">
   <header class="page-head">
-    <span class="eyebrow">Editor de imagen</span>
+    <span class="eyebrow">Editor de imagen y video en tu navegador</span>
     <h1>Foto a Medida</h1>
-    <p>Elige una imagen de tu galería y ajusta su tamaño, calidad y proporción antes de guardarla.</p>
+    <p>Elige una imagen o un video de tu galería y ajusta tamaño, calidad y proporción (y en video, también el recorte de tiempo y el formato) antes de guardarlo. Todo ocurre en tu propio dispositivo — nada se envía a ningún servidor.</p>
   </header>
 
-  <div class="preview-col">
-    <label class="dropzone" id="dropzone">
-      <span class="dz-label">
-        <svg class="dz-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2.2"/><circle cx="9" cy="10.5" r="1.6"/><path d="M21 16.5l-5.7-5.2a1.6 1.6 0 0 0-2.15.02L3 19"/></svg>
-        <span id="dz-text">Elegir imagen de la galería</span>
-      </span>
-      <span class="dz-swap" id="dz-swap" hidden>Cambiar</span>
-      <input type="file" accept="image/*" id="file-input">
-    </label>
+  <div class="mode-tabs" role="tablist" aria-label="Tipo de archivo">
+    <button class="mode-tab" id="tab-image" role="tab" aria-selected="true">Imagen</button>
+    <button class="mode-tab" id="tab-video" role="tab" aria-selected="false">Video</button>
+  </div>
 
-    <div class="canvas-wrap empty" id="canvas-wrap">
-      <div id="empty-msg">Tu imagen aparecerá aquí.<br>Podrás arrastrarla para elegir qué parte conservar al recortar.</div>
-      <canvas id="canvas" hidden></canvas>
-      <span class="pan-hint" id="pan-hint">Arrastra para reencuadrar</span>
+  <!-- ================= IMAGEN ================= -->
+  <div class="dual-col" id="view-image">
+    <div class="preview-col">
+      <label class="dropzone" id="dropzone">
+        <span class="dz-label">
+          <svg class="dz-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2.2"/><circle cx="9" cy="10.5" r="1.6"/><path d="M21 16.5l-5.7-5.2a1.6 1.6 0 0 0-2.15.02L3 19"/></svg>
+          <span id="dz-text">Elegir imagen de la galería</span>
+        </span>
+        <span class="dz-swap" id="dz-swap" hidden>Cambiar</span>
+        <input type="file" accept="image/*" id="file-input">
+      </label>
+
+      <div class="canvas-wrap empty" id="canvas-wrap">
+        <div id="empty-msg">Tu imagen aparecerá aquí.<br>Podrás arrastrarla para elegir qué parte conservar al recortar.</div>
+        <canvas id="canvas" hidden></canvas>
+        <span class="pan-hint" id="pan-hint">Arrastra para reencuadrar</span>
+      </div>
+
+      <div class="meta-row" id="meta-row" hidden>
+        <span>Original: <span class="num" id="meta-original">—</span></span>
+        <span>Salida: <span class="num" id="meta-output">—</span></span>
+      </div>
     </div>
 
-    <div class="meta-row" id="meta-row" hidden>
-      <span>Original: <span class="num" id="meta-original">—</span></span>
-      <span>Salida: <span class="num" id="meta-output">—</span></span>
+    <div class="controls-col">
+      <section class="panel section">
+        <h2>Proporción</h2>
+        <div class="pill-row" id="ratio-pills">
+          <button class="pill" data-ratio="original" aria-pressed="true">Original</button>
+          <button class="pill" data-ratio="1/1">1:1</button>
+          <button class="pill" data-ratio="4/3">4:3</button>
+          <button class="pill" data-ratio="3/4">3:4</button>
+          <button class="pill" data-ratio="16/9">16:9</button>
+          <button class="pill" data-ratio="9/16">9:16</button>
+          <button class="pill" data-ratio="3/2">3:2</button>
+          <button class="pill" data-ratio="2/3">2:3</button>
+          <label class="custom-ratio" id="custom-ratio">
+            <input type="number" id="ratio-custom-w" min="1" max="99" step="1" placeholder="5" aria-label="Ancho de la proporción personalizada">
+            <span class="colon">:</span>
+            <input type="number" id="ratio-custom-h" min="1" max="99" step="1" placeholder="4" aria-label="Alto de la proporción personalizada">
+          </label>
+          <button class="pill" data-ratio="free">Libre</button>
+        </div>
+        <p class="hint-text">Escribe tu propia proporción (por ejemplo 5 : 4) en el recuadro, o toca "Libre" para fijar ancho y alto por separado, sin conservar ninguna proporción entre ellos.</p>
+      </section>
+
+      <section class="panel section">
+        <h2>Dimensiones (px)</h2>
+        <div class="dim-row">
+          <div class="field">
+            <label for="width-input">Ancho</label>
+            <input type="number" id="width-input" min="1" max="8000" step="1">
+          </div>
+          <button class="lock-btn" id="lock-btn" aria-pressed="true" title="Bloquear proporción" aria-label="Bloquear proporción">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.6"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          </button>
+          <div class="field">
+            <label for="height-input">Alto</label>
+            <input type="number" id="height-input" min="1" max="8000" step="1">
+          </div>
+        </div>
+        <div class="quick-sizes">
+          <button data-longest="480">Pequeña · 480px</button>
+          <button data-longest="1080">Mediana · 1080px</button>
+          <button data-longest="1920">Grande · 1920px</button>
+          <button id="reset-dims">Restablecer</button>
+        </div>
+      </section>
+
+      <section class="panel section">
+        <h2>Calidad y formato</h2>
+        <div class="format-row" id="format-row">
+          <button data-format="jpeg" aria-pressed="true">JPG</button>
+          <button data-format="png">PNG</button>
+          <button data-format="webp">WebP</button>
+        </div>
+        <div class="quality-row" id="quality-row">
+          <div class="quality-head"><span>Calidad</span><span class="num" id="quality-value">85</span></div>
+          <input type="range" id="quality-slider" min="1" max="100" value="85">
+        </div>
+        <div class="size-estimate" id="size-estimate">
+          <span>Tamaño estimado</span>
+          <span class="num" id="size-value">—</span>
+        </div>
+      </section>
+
+      <section class="panel section actions">
+        <button class="btn-primary" id="save-btn" disabled>Descargar imagen</button>
+        <button class="btn-ghost" id="reset-all-btn">Reiniciar todo</button>
+        <div class="status-msg" id="status-msg"></div>
+      </section>
     </div>
   </div>
 
-  <div class="controls-col">
-    <section class="panel section">
-      <h2>Proporción</h2>
-      <div class="pill-row" id="ratio-pills">
-        <button class="pill" data-ratio="original" aria-pressed="true">Original</button>
-        <button class="pill" data-ratio="1/1">1:1</button>
-        <button class="pill" data-ratio="4/3">4:3</button>
-        <button class="pill" data-ratio="3/4">3:4</button>
-        <button class="pill" data-ratio="16/9">16:9</button>
-        <button class="pill" data-ratio="9/16">9:16</button>
-        <button class="pill" data-ratio="3/2">3:2</button>
-        <button class="pill" data-ratio="2/3">2:3</button>
-        <label class="custom-ratio" id="custom-ratio">
-          <input type="number" id="ratio-custom-w" min="1" max="99" step="1" placeholder="5" aria-label="Ancho de la proporción personalizada">
-          <span class="colon">:</span>
-          <input type="number" id="ratio-custom-h" min="1" max="99" step="1" placeholder="4" aria-label="Alto de la proporción personalizada">
-        </label>
-        <button class="pill" data-ratio="free">Libre</button>
-      </div>
-      <p class="hint-text">Escribe tu propia proporción (por ejemplo 5 : 4) en el recuadro, o toca "Libre" para fijar ancho y alto en px por separado, sin conservar ninguna proporción entre ellos.</p>
-    </section>
+  <!-- ================= VIDEO ================= -->
+  <div class="dual-col" id="view-video" hidden>
+    <div class="preview-col">
+      <label class="dropzone" id="v-dropzone">
+        <span class="dz-label">
+          <svg class="dz-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5.5" width="13" height="13" rx="2.2"/><path d="M16 9.5l5-3v11l-5-3z"/></svg>
+          <span id="v-dz-text">Elegir video de la galería</span>
+        </span>
+        <span class="dz-swap" id="v-dz-swap" hidden>Cambiar</span>
+        <input type="file" accept="video/*" id="v-file-input">
+      </label>
 
-    <section class="panel section">
-      <h2>Dimensiones (px)</h2>
-      <div class="dim-row">
-        <div class="field">
-          <label for="width-input">Ancho</label>
-          <input type="number" id="width-input" min="1" max="8000" step="1">
+      <div class="canvas-wrap video-wrap empty" id="video-wrap">
+        <div id="v-empty-msg">Tu video aparecerá aquí.<br>El recorte de encuadre para video siempre queda centrado.</div>
+        <video id="video-preview" hidden controls playsinline preload="metadata"></video>
+        <div class="crop-overlay" id="crop-overlay" hidden></div>
+      </div>
+
+      <div class="meta-row" id="v-meta-row" hidden>
+        <span>Original: <span class="num" id="v-meta-original">—</span></span>
+        <span>Salida: <span class="num" id="v-meta-output">—</span></span>
+      </div>
+    </div>
+
+    <div class="controls-col">
+      <section class="panel section">
+        <h2>Proporción</h2>
+        <div class="pill-row" id="v-ratio-pills">
+          <button class="pill" data-ratio="original" aria-pressed="true">Original</button>
+          <button class="pill" data-ratio="1/1">1:1</button>
+          <button class="pill" data-ratio="4/3">4:3</button>
+          <button class="pill" data-ratio="3/4">3:4</button>
+          <button class="pill" data-ratio="16/9">16:9</button>
+          <button class="pill" data-ratio="9/16">9:16</button>
+          <button class="pill" data-ratio="3/2">3:2</button>
+          <button class="pill" data-ratio="2/3">2:3</button>
+          <label class="custom-ratio" id="v-custom-ratio">
+            <input type="number" id="v-ratio-custom-w" min="1" max="99" step="1" placeholder="5" aria-label="Ancho de la proporción personalizada">
+            <span class="colon">:</span>
+            <input type="number" id="v-ratio-custom-h" min="1" max="99" step="1" placeholder="4" aria-label="Alto de la proporción personalizada">
+          </label>
+          <button class="pill" data-ratio="free">Libre</button>
         </div>
-        <button class="lock-btn" id="lock-btn" aria-pressed="true" title="Bloquear proporción" aria-label="Bloquear proporción">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.6"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-        </button>
-        <div class="field">
-          <label for="height-input">Alto</label>
-          <input type="number" id="height-input" min="1" max="8000" step="1">
+        <p class="hint-text">En video el recorte siempre queda centrado (sin arrastrar). Escribe tu propia proporción o toca "Libre" para fijar ancho y alto por separado.</p>
+      </section>
+
+      <section class="panel section">
+        <h2>Dimensiones (px)</h2>
+        <div class="dim-row">
+          <div class="field">
+            <label for="v-width-input">Ancho</label>
+            <input type="number" id="v-width-input" min="2" max="4096" step="2">
+          </div>
+          <button class="lock-btn" id="v-lock-btn" aria-pressed="true" title="Bloquear proporción" aria-label="Bloquear proporción">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.6"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          </button>
+          <div class="field">
+            <label for="v-height-input">Alto</label>
+            <input type="number" id="v-height-input" min="2" max="4096" step="2">
+          </div>
         </div>
-      </div>
-      <div class="quick-sizes">
-        <button data-longest="480">Pequeña · 480px</button>
-        <button data-longest="1080">Mediana · 1080px</button>
-        <button data-longest="1920">Grande · 1920px</button>
-        <button id="reset-dims">Restablecer</button>
-      </div>
-    </section>
+        <div class="quick-sizes" id="v-quick-sizes">
+          <button data-longest="480">Pequeño · 480px</button>
+          <button data-longest="720">Mediano · 720px</button>
+          <button data-longest="1080">Grande · 1080px</button>
+          <button id="v-reset-dims">Restablecer</button>
+        </div>
+      </section>
 
-    <section class="panel section">
-      <h2>Calidad y formato</h2>
-      <div class="format-row" id="format-row">
-        <button data-format="jpeg" aria-pressed="true">JPG</button>
-        <button data-format="png">PNG</button>
-        <button data-format="webp">WebP</button>
-      </div>
-      <div class="quality-row" id="quality-row">
-        <div class="quality-head"><span>Calidad</span><span class="num" id="quality-value">85</span></div>
-        <input type="range" id="quality-slider" min="1" max="100" value="85">
-      </div>
-      <div class="size-estimate" id="size-estimate">
-        <span>Tamaño estimado</span>
-        <span class="num" id="size-value">—</span>
-      </div>
-    </section>
+      <section class="panel section">
+        <h2>Recorte de tiempo</h2>
+        <div class="dim-row">
+          <div class="field">
+            <label for="trim-start">Inicio (seg)</label>
+            <input type="number" id="trim-start" min="0" step="0.1" value="0">
+          </div>
+          <div class="field">
+            <label for="trim-end">Fin (seg)</label>
+            <input type="number" id="trim-end" min="0" step="0.1" value="0">
+          </div>
+        </div>
+        <div class="quick-sizes" id="trim-actions">
+          <button type="button" id="mark-start">Marcar inicio aquí</button>
+          <button type="button" id="mark-end">Marcar fin aquí</button>
+        </div>
+        <div class="trim-bar"><div class="trim-bar-fill" id="trim-bar-fill"></div></div>
+        <p class="hint-text">Duración total: <span class="num" id="video-duration">0:00</span> · Seleccionado: <span class="num" id="trim-selected">0:00</span>. Reproduce el video y toca los botones para marcar dónde empieza y termina el recorte.</p>
+      </section>
 
-    <section class="panel section actions">
-      <button class="btn-primary" id="save-btn" disabled>Descargar imagen</button>
-      <button class="btn-ghost" id="reset-all-btn">Reiniciar todo</button>
-      <div class="status-msg" id="status-msg"></div>
-    </section>
+      <section class="panel section">
+        <h2>Calidad y formato</h2>
+        <div class="format-row" id="v-format-row">
+          <button data-format="mp4" aria-pressed="true">MP4</button>
+          <button data-format="webm">WebM</button>
+          <button data-format="gif">GIF</button>
+        </div>
+        <div class="quality-row" id="v-quality-row">
+          <div class="quality-head"><span>Calidad</span><span class="num" id="v-quality-value">70</span></div>
+          <input type="range" id="v-quality-slider" min="1" max="100" value="70">
+        </div>
+        <p class="hint-text" id="v-format-hint">MP4 (H.264) es el más compatible y el más rápido de generar.</p>
+      </section>
+
+      <section class="panel section actions">
+        <button class="btn-primary" id="video-process-btn" disabled>Generar y descargar video</button>
+        <div class="progress-wrap" id="progress-wrap" hidden>
+          <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+          <div class="hint-text" id="progress-label">Cargando motor de video…</div>
+        </div>
+        <button class="btn-ghost" id="v-reset-all-btn">Reiniciar todo</button>
+        <div class="status-msg" id="video-status"></div>
+        <p class="hint-text">La primera vez que generes un video se descarga el motor de conversión (~25 MB) y hace falta conexión a internet; el procesamiento en sí ocurre en tu propio teléfono. Un recorte largo, en WebM, puede tardar varios minutos.</p>
+      </section>
+    </div>
   </div>
 </div>
 
 <script>
+// ==================== Pestañas ====================
+(function () {
+  "use strict";
+  var tabImage = document.getElementById('tab-image');
+  var tabVideo = document.getElementById('tab-video');
+  var viewImage = document.getElementById('view-image');
+  var viewVideo = document.getElementById('view-video');
+
+  function selectTab(which) {
+    var isImage = which === 'image';
+    tabImage.setAttribute('aria-selected', String(isImage));
+    tabVideo.setAttribute('aria-selected', String(!isImage));
+    viewImage.hidden = !isImage;
+    viewVideo.hidden = isImage;
+  }
+
+  tabImage.addEventListener('click', function () { selectTab('image'); });
+  tabVideo.addEventListener('click', function () { selectTab('video'); });
+})();
+
+// ==================== Imagen ====================
 (function () {
   "use strict";
 
@@ -603,7 +826,7 @@
     widthInput: document.getElementById('width-input'),
     heightInput: document.getElementById('height-input'),
     lockBtn: document.getElementById('lock-btn'),
-    quickSizes: document.querySelector('.quick-sizes'),
+    quickSizes: document.querySelector('#view-image .quick-sizes'),
     resetDims: document.getElementById('reset-dims'),
     formatRow: document.getElementById('format-row'),
     qualityRow: document.getElementById('quality-row'),
@@ -1020,7 +1243,6 @@
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      // Libera la URL temporal un momento después de iniciar la descarga.
       setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 4000);
 
       setStatus('ok', 'Descarga iniciada: ' + filename);
@@ -1048,6 +1270,537 @@
     syncLockButton();
     clearStatus();
     requestRender();
+  });
+})();
+
+// ==================== Video ====================
+(function () {
+  "use strict";
+
+  var els = {
+    fileInput: document.getElementById('v-file-input'),
+    dzText: document.getElementById('v-dz-text'),
+    dzSwap: document.getElementById('v-dz-swap'),
+    videoWrap: document.getElementById('video-wrap'),
+    emptyMsg: document.getElementById('v-empty-msg'),
+    video: document.getElementById('video-preview'),
+    cropOverlay: document.getElementById('crop-overlay'),
+    metaRow: document.getElementById('v-meta-row'),
+    metaOriginal: document.getElementById('v-meta-original'),
+    metaOutput: document.getElementById('v-meta-output'),
+    ratioPills: document.getElementById('v-ratio-pills'),
+    customRatioBox: document.getElementById('v-custom-ratio'),
+    ratioCustomW: document.getElementById('v-ratio-custom-w'),
+    ratioCustomH: document.getElementById('v-ratio-custom-h'),
+    widthInput: document.getElementById('v-width-input'),
+    heightInput: document.getElementById('v-height-input'),
+    lockBtn: document.getElementById('v-lock-btn'),
+    quickSizes: document.getElementById('v-quick-sizes'),
+    formatRow: document.getElementById('v-format-row'),
+    qualityRow: document.getElementById('v-quality-row'),
+    qualitySlider: document.getElementById('v-quality-slider'),
+    qualityValue: document.getElementById('v-quality-value'),
+    formatHint: document.getElementById('v-format-hint'),
+    trimStartInput: document.getElementById('trim-start'),
+    trimEndInput: document.getElementById('trim-end'),
+    markStartBtn: document.getElementById('mark-start'),
+    markEndBtn: document.getElementById('mark-end'),
+    trimBarFill: document.getElementById('trim-bar-fill'),
+    videoDuration: document.getElementById('video-duration'),
+    trimSelected: document.getElementById('trim-selected'),
+    processBtn: document.getElementById('video-process-btn'),
+    progressWrap: document.getElementById('progress-wrap'),
+    progressFill: document.getElementById('progress-fill'),
+    progressLabel: document.getElementById('progress-label'),
+    resetAllBtn: document.getElementById('v-reset-all-btn'),
+    statusMsg: document.getElementById('video-status'),
+  };
+
+  var state = {
+    file: null,
+    objectUrl: null,
+    fileBase: 'video',
+    naturalW: 0,
+    naturalH: 0,
+    duration: 0,
+    ratioMode: 'original',
+    lock: true,
+    targetW: 0,
+    targetH: 0,
+    trimStart: 0,
+    trimEnd: 0,
+    format: 'mp4',
+    quality: 70,
+  };
+
+  var MAX_DIM = 4096;
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function evenFloor(n) { n = Math.floor(n); return n - (n % 2); }
+  function clampEven(n) { n = Math.max(2, Math.round(n)); return n - (n % 2); }
+
+  function currentRatioValue() {
+    if (state.ratioMode === 'original') return state.naturalW / state.naturalH;
+    if (state.ratioMode === 'free') return null;
+    var parts = state.ratioMode.split('/');
+    return parseFloat(parts[0]) / parseFloat(parts[1]);
+  }
+
+  function setStatus(kind, text) {
+    els.statusMsg.className = 'status-msg show ' + kind;
+    els.statusMsg.textContent = text;
+  }
+  function clearStatus() {
+    els.statusMsg.className = 'status-msg';
+    els.statusMsg.textContent = '';
+  }
+
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+  function formatTime(sec) {
+    sec = Math.max(0, sec || 0);
+    var h = Math.floor(sec / 3600);
+    var m = Math.floor((sec % 3600) / 60);
+    var s = Math.floor(sec % 60);
+    if (h > 0) return h + ':' + pad2(m) + ':' + pad2(s);
+    return m + ':' + pad2(s);
+  }
+
+  // ---------- Video loading ----------
+
+  els.fileInput.addEventListener('change', function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    loadVideoFile(file);
+  });
+
+  function loadVideoFile(file) {
+    clearStatus();
+    setStatus('warn', 'Cargando video…');
+
+    if (state.objectUrl) { URL.revokeObjectURL(state.objectUrl); state.objectUrl = null; }
+
+    state.file = file;
+    state.fileBase = (file.name || 'video').replace(/\.[^.]+$/, '');
+
+    var ext = (file.name || '').split('.').pop().toLowerCase();
+    state.format = (ext === 'webm') ? 'webm' : 'mp4';
+
+    var url = URL.createObjectURL(file);
+    state.objectUrl = url;
+    els.video.src = url;
+    els.video.hidden = false;
+    els.emptyMsg.hidden = true;
+    els.videoWrap.classList.remove('empty');
+
+    els.video.onloadedmetadata = function () {
+      state.naturalW = els.video.videoWidth;
+      state.naturalH = els.video.videoHeight;
+      state.duration = els.video.duration || 0;
+      state.targetW = state.naturalW;
+      state.targetH = state.naturalH;
+      state.ratioMode = 'original';
+      state.lock = true;
+      state.trimStart = 0;
+      state.trimEnd = state.duration;
+
+      els.ratioCustomW.value = '';
+      els.ratioCustomH.value = '';
+      els.widthInput.value = state.targetW;
+      els.heightInput.value = state.targetH;
+      els.trimStartInput.value = '0';
+      els.trimStartInput.max = String(state.duration);
+      els.trimEndInput.value = state.duration.toFixed(1);
+      els.trimEndInput.max = String(state.duration);
+      els.videoDuration.textContent = formatTime(state.duration);
+
+      syncFormatButtons();
+      syncRatioButtons();
+      syncLockButton();
+      updateTrimUI();
+      updateCropOverlay();
+
+      els.dzText.textContent = file.name || 'Video cargado';
+      els.dzSwap.hidden = false;
+      els.metaRow.hidden = false;
+      els.metaOriginal.textContent = state.naturalW + ' × ' + state.naturalH + ' px · ' + formatTime(state.duration);
+      els.processBtn.disabled = false;
+
+      clearStatus();
+    };
+
+    els.video.onerror = function () {
+      setStatus('err', 'No se pudo leer ese video. Prueba con otro archivo — MP4 (H.264) suele ser el más compatible.');
+    };
+  }
+
+  function updateMetaOutput() {
+    var tw = clampEven(state.targetW);
+    var th = clampEven(state.targetH);
+    els.metaOutput.textContent = tw + ' × ' + th + ' px · ' + formatTime(Math.max(0, state.trimEnd - state.trimStart));
+  }
+
+  // ---------- Recorte de encuadre (siempre centrado) ----------
+
+  function computeCrop(naturalW, naturalH, targetW, targetH) {
+    var sourceRatio = naturalW / naturalH;
+    var targetRatio = targetW / targetH;
+    var cropW, cropH;
+    if (Math.abs(targetRatio - sourceRatio) < 0.0005) {
+      cropW = naturalW; cropH = naturalH;
+    } else if (targetRatio > sourceRatio) {
+      cropW = naturalW; cropH = cropW / targetRatio;
+    } else {
+      cropH = naturalH; cropW = cropH * targetRatio;
+    }
+    cropW = evenFloor(cropW);
+    cropH = evenFloor(cropH);
+    var x = evenFloor((naturalW - cropW) / 2);
+    var y = evenFloor((naturalH - cropH) / 2);
+    return { w: cropW, h: cropH, x: x, y: y };
+  }
+
+  function updateCropOverlay() {
+    if (!state.naturalW || !state.naturalH) { els.cropOverlay.hidden = true; return; }
+    var tw = clampEven(state.targetW);
+    var th = clampEven(state.targetH);
+    var crop = computeCrop(state.naturalW, state.naturalH, tw, th);
+    var showOverlay = crop.w < state.naturalW - 0.5 || crop.h < state.naturalH - 0.5;
+    els.cropOverlay.hidden = !showOverlay;
+    if (showOverlay) {
+      els.cropOverlay.style.left = (crop.x / state.naturalW * 100) + '%';
+      els.cropOverlay.style.top = (crop.y / state.naturalH * 100) + '%';
+      els.cropOverlay.style.width = (crop.w / state.naturalW * 100) + '%';
+      els.cropOverlay.style.height = (crop.h / state.naturalH * 100) + '%';
+    }
+    updateMetaOutput();
+  }
+
+  // ---------- Proporción (mismo patrón que en imagen) ----------
+
+  function syncRatioButtons() {
+    var pills = els.ratioPills.querySelectorAll('.pill');
+    var isPreset = false;
+    pills.forEach(function (p) {
+      var match = p.dataset.ratio === state.ratioMode;
+      p.setAttribute('aria-pressed', match ? 'true' : 'false');
+      if (match) isPreset = true;
+    });
+    els.customRatioBox.classList.toggle('active', !isPreset);
+    els.lockBtn.hidden = state.ratioMode !== 'free';
+  }
+
+  els.ratioPills.addEventListener('click', function (e) {
+    var btn = e.target.closest('.pill');
+    if (!btn || !state.file) return;
+    state.ratioMode = btn.dataset.ratio;
+    els.ratioCustomW.value = '';
+    els.ratioCustomH.value = '';
+    var ratio = currentRatioValue();
+    if (ratio) {
+      state.targetH = Math.round(state.targetW / ratio);
+      els.heightInput.value = state.targetH;
+    }
+    syncRatioButtons();
+    updateCropOverlay();
+  });
+
+  function applyCustomRatio() {
+    if (!state.file) return;
+    var w = parseFloat(els.ratioCustomW.value);
+    var h = parseFloat(els.ratioCustomH.value);
+    if (!w || !h || w <= 0 || h <= 0) return;
+    state.ratioMode = w + '/' + h;
+    var ratio = currentRatioValue();
+    state.targetH = Math.round(state.targetW / ratio);
+    els.heightInput.value = state.targetH;
+    syncRatioButtons();
+    updateCropOverlay();
+  }
+
+  els.ratioCustomW.addEventListener('input', applyCustomRatio);
+  els.ratioCustomH.addEventListener('input', applyCustomRatio);
+
+  // ---------- Ancho / alto ----------
+
+  function syncLockButton() { els.lockBtn.setAttribute('aria-pressed', String(state.lock)); }
+
+  els.lockBtn.addEventListener('click', function () {
+    state.lock = !state.lock;
+    syncLockButton();
+  });
+
+  els.widthInput.addEventListener('input', function () {
+    var w = clamp(parseInt(els.widthInput.value, 10) || 2, 2, MAX_DIM);
+    state.targetW = w;
+    var ratio = currentRatioValue();
+    if (ratio) {
+      state.targetH = Math.round(w / ratio);
+      els.heightInput.value = state.targetH;
+    } else if (state.lock && state.naturalW && state.naturalH) {
+      state.targetH = Math.round(w * (state.naturalH / state.naturalW));
+      els.heightInput.value = state.targetH;
+    }
+    updateCropOverlay();
+  });
+
+  els.heightInput.addEventListener('input', function () {
+    var h = clamp(parseInt(els.heightInput.value, 10) || 2, 2, MAX_DIM);
+    state.targetH = h;
+    var ratio = currentRatioValue();
+    if (ratio) {
+      state.targetW = Math.round(h * ratio);
+      els.widthInput.value = state.targetW;
+    } else if (state.lock && state.naturalW && state.naturalH) {
+      state.targetW = Math.round(h * (state.naturalW / state.naturalH));
+      els.widthInput.value = state.targetW;
+    }
+    updateCropOverlay();
+  });
+
+  els.quickSizes.addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn || !state.file) return;
+    if (btn.id === 'v-reset-dims') {
+      state.targetW = state.naturalW;
+      state.targetH = state.naturalH;
+      els.widthInput.value = state.targetW;
+      els.heightInput.value = state.targetH;
+      updateCropOverlay();
+      return;
+    }
+    var longest = parseInt(btn.dataset.longest, 10);
+    var ratio = currentRatioValue() || (state.naturalW / state.naturalH);
+    if (ratio >= 1) {
+      state.targetW = longest;
+      state.targetH = Math.round(longest / ratio);
+    } else {
+      state.targetH = longest;
+      state.targetW = Math.round(longest * ratio);
+    }
+    els.widthInput.value = state.targetW;
+    els.heightInput.value = state.targetH;
+    updateCropOverlay();
+  });
+
+  // ---------- Recorte de tiempo ----------
+
+  function updateTrimUI() {
+    var dur = state.duration || 0.0001;
+    var startPct = clamp(state.trimStart / dur, 0, 1) * 100;
+    var widthPct = clamp((state.trimEnd - state.trimStart) / dur, 0, 1) * 100;
+    els.trimBarFill.style.left = startPct + '%';
+    els.trimBarFill.style.width = widthPct + '%';
+    els.trimSelected.textContent = formatTime(Math.max(0, state.trimEnd - state.trimStart));
+    updateMetaOutput();
+  }
+
+  els.trimStartInput.addEventListener('input', function () {
+    var v = clamp(parseFloat(els.trimStartInput.value) || 0, 0, state.duration);
+    if (v > state.trimEnd - 0.1) v = Math.max(0, state.trimEnd - 0.1);
+    state.trimStart = v;
+    els.trimStartInput.value = v.toFixed(1);
+    updateTrimUI();
+  });
+
+  els.trimEndInput.addEventListener('input', function () {
+    var v = clamp(parseFloat(els.trimEndInput.value) || 0, 0, state.duration);
+    if (v < state.trimStart + 0.1) v = Math.min(state.duration, state.trimStart + 0.1);
+    state.trimEnd = v;
+    els.trimEndInput.value = v.toFixed(1);
+    updateTrimUI();
+  });
+
+  els.markStartBtn.addEventListener('click', function () {
+    if (!state.file) return;
+    var t = els.video.currentTime;
+    if (t > state.trimEnd - 0.1) return;
+    state.trimStart = t;
+    els.trimStartInput.value = t.toFixed(1);
+    updateTrimUI();
+  });
+
+  els.markEndBtn.addEventListener('click', function () {
+    if (!state.file) return;
+    var t = els.video.currentTime;
+    if (t < state.trimStart + 0.1) return;
+    state.trimEnd = t;
+    els.trimEndInput.value = t.toFixed(1);
+    updateTrimUI();
+  });
+
+  // ---------- Formato y calidad ----------
+
+  var FORMAT_HINTS = {
+    mp4: 'MP4 (H.264) es el más compatible y el más rápido de generar.',
+    webm: 'WebM conserva buena calidad a menor peso, pero tarda bastante más en generarse en el teléfono.',
+    gif: 'GIF no lleva audio y pesa más cuanto más dura el recorte; la calidad no afecta al GIF.'
+  };
+
+  function syncFormatButtons() {
+    els.formatRow.querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.dataset.format === state.format ? 'true' : 'false');
+    });
+    els.formatHint.textContent = FORMAT_HINTS[state.format] || '';
+    var isGif = state.format === 'gif';
+    els.qualityRow.style.opacity = isGif ? '0.45' : '1';
+    els.qualitySlider.disabled = isGif;
+  }
+
+  els.formatRow.addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    state.format = btn.dataset.format;
+    syncFormatButtons();
+  });
+
+  els.qualitySlider.addEventListener('input', function () {
+    state.quality = parseInt(els.qualitySlider.value, 10);
+    els.qualityValue.textContent = state.quality;
+  });
+
+  syncFormatButtons();
+  syncRatioButtons();
+
+  // ---------- Motor de video (FFmpeg, se carga solo al procesar) ----------
+
+  var FFMPEG_SCRIPT = 'https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
+  var FFMPEG_CORE = 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js';
+
+  var scriptPromise = null;
+  function ensureFFmpegScript() {
+    if (window.FFmpeg) return Promise.resolve();
+    if (!scriptPromise) {
+      scriptPromise = new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.src = FFMPEG_SCRIPT;
+        s.onload = function () { resolve(); };
+        s.onerror = function () { scriptPromise = null; reject(new Error('No se pudo cargar el motor de video.')); };
+        document.head.appendChild(s);
+      });
+    }
+    return scriptPromise;
+  }
+
+  var ffmpegInstance = null;
+  function getFFmpeg(onProgress) {
+    return ensureFFmpegScript().then(function () {
+      if (!ffmpegInstance) {
+        ffmpegInstance = window.FFmpeg.createFFmpeg({ log: false, corePath: FFMPEG_CORE });
+      }
+      ffmpegInstance.setProgress(onProgress);
+      if (ffmpegInstance.isLoaded()) return ffmpegInstance;
+      return ffmpegInstance.load().then(function () { return ffmpegInstance; });
+    });
+  }
+
+  function showProgress(pct, label) {
+    els.progressWrap.hidden = false;
+    els.progressFill.style.width = clamp(pct, 0, 100) + '%';
+    els.progressLabel.textContent = label;
+  }
+  function hideProgress() { els.progressWrap.hidden = true; }
+
+  function setProcessing(isProcessing) {
+    els.processBtn.disabled = isProcessing || !state.file;
+    els.processBtn.textContent = isProcessing ? 'Procesando…' : 'Generar y descargar video';
+  }
+
+  els.processBtn.addEventListener('click', function () {
+    if (!state.file) return;
+    clearStatus();
+    setProcessing(true);
+    showProgress(0, 'Cargando motor de video (única vez, ~25 MB)…');
+
+    getFFmpeg(function (p) {
+      var pct = Math.round(clamp((p && p.ratio) || 0, 0, 1) * 100);
+      showProgress(pct, 'Procesando video… ' + pct + '%');
+    }).then(function (ffmpeg) {
+      showProgress(0, 'Preparando archivo…');
+      return window.FFmpeg.fetchFile(state.file).then(function (data) {
+        var inName = 'input_' + Date.now();
+        ffmpeg.FS('writeFile', inName, data);
+
+        var tw = clampEven(state.targetW);
+        var th = clampEven(state.targetH);
+        var crop = computeCrop(state.naturalW, state.naturalH, tw, th);
+        var vf = 'crop=' + crop.w + ':' + crop.h + ':' + crop.x + ':' + crop.y + ',scale=' + tw + ':' + th;
+
+        var ss = String(Math.max(0, state.trimStart));
+        var to = String(Math.max(state.trimStart + 0.1, state.trimEnd));
+        var outName = 'output.' + state.format;
+        var args;
+
+        if (state.format === 'mp4') {
+          var crf = Math.round(51 - (state.quality / 100) * 33);
+          args = ['-i', inName, '-ss', ss, '-to', to, '-vf', vf,
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', String(crf),
+            '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', outName];
+        } else if (state.format === 'webm') {
+          var crfw = Math.round(48 - (state.quality / 100) * 33);
+          args = ['-i', inName, '-ss', ss, '-to', to, '-vf', vf,
+            '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', String(crfw),
+            '-deadline', 'realtime', '-cpu-used', '5',
+            '-c:a', 'libopus', '-b:a', '128k', outName];
+        } else {
+          var vfGif = vf + ',fps=12,split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse=dither=bayer';
+          args = ['-i', inName, '-ss', ss, '-to', to, '-vf', vfGif, '-an', outName];
+        }
+
+        showProgress(0, 'Procesando video…');
+        return ffmpeg.run.apply(ffmpeg, args).then(function () {
+          var out = ffmpeg.FS('readFile', outName);
+          var mime = state.format === 'mp4' ? 'video/mp4' : state.format === 'webm' ? 'video/webm' : 'image/gif';
+          var blob = new Blob([out.buffer], { type: mime });
+
+          try { ffmpeg.FS('unlink', inName); } catch (e) {}
+          try { ffmpeg.FS('unlink', outName); } catch (e) {}
+
+          var filename = state.fileBase + '_' + tw + 'x' + th + '.' + state.format;
+          var blobUrl = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 4000);
+
+          setStatus('ok', 'Video generado y descargado: ' + filename);
+        });
+      });
+    }).catch(function (err) {
+      console.error(err);
+      setStatus('err', 'No se pudo generar el video. Revisa tu conexión a internet (hace falta para el motor de video la primera vez) o prueba con un recorte más corto.');
+    }).finally(function () {
+      hideProgress();
+      setProcessing(false);
+    });
+  });
+
+  // ---------- Reiniciar ----------
+
+  els.resetAllBtn.addEventListener('click', function () {
+    if (!state.file) return;
+    state.ratioMode = 'original';
+    state.lock = true;
+    state.targetW = state.naturalW;
+    state.targetH = state.naturalH;
+    state.trimStart = 0;
+    state.trimEnd = state.duration;
+    state.quality = 70;
+    els.qualitySlider.value = 70;
+    els.qualityValue.textContent = '70';
+    els.widthInput.value = state.targetW;
+    els.heightInput.value = state.targetH;
+    els.ratioCustomW.value = '';
+    els.ratioCustomH.value = '';
+    els.trimStartInput.value = '0';
+    els.trimEndInput.value = state.duration.toFixed(1);
+    syncRatioButtons();
+    syncLockButton();
+    updateTrimUI();
+    updateCropOverlay();
+    clearStatus();
   });
 })();
 </script>
