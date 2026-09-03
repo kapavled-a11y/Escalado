@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<!-- Debe ser el primer script: activa el aislamiento de origen cruzado
+     (COOP/COEP) necesario para que el motor de video (ffmpeg.wasm) funcione
+     en GitHub Pages, que no permite configurar cabeceras HTTP propias.
+     El archivo coi-serviceworker.js debe subirse junto a este HTML, en la
+     misma carpeta. -->
+<script src="coi-serviceworker.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Foto a Medida</title>
@@ -1715,6 +1721,10 @@
   els.processBtn.addEventListener('click', function () {
     if (!state.file) return;
     clearStatus();
+    if (typeof SharedArrayBuffer === 'undefined' || window.crossOriginIsolated !== true) {
+      setStatus('err', 'La página necesita recargarse una vez para activar el motor de video. Por favor, recarga esta página (desliza hacia abajo o pulsa el botón de recargar del navegador) y vuelve a intentarlo.');
+      return;
+    }
     setProcessing(true);
     showProgress(0, 'Cargando motor de video (única vez, ~25 MB)…');
 
@@ -1782,7 +1792,8 @@
       });
     }).catch(function (err) {
       console.error(err);
-      setStatus('err', 'No se pudo generar el video. Revisa tu conexión a internet (hace falta para el motor de video la primera vez) o prueba con un recorte más corto.');
+      var detail = (err && (err.message || err.toString())) || 'error desconocido';
+      setStatus('err', 'No se pudo generar el video (' + detail + '). Revisa tu conexión a internet (hace falta para el motor de video la primera vez) o prueba con un recorte más corto.');
     }).finally(function () {
       hideProgress();
       setProcessing(false);
