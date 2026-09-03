@@ -789,6 +789,7 @@
         <button class="btn-ghost" id="v-reset-all-btn">Reiniciar todo</button>
         <div class="status-msg" id="video-status"></div>
         <p class="hint-text">La primera vez que generes un video se descarga el motor de conversión (~25 MB) y hace falta conexión a internet; el procesamiento en sí ocurre en tu propio teléfono. Un recorte largo, en WebM, puede tardar varios minutos.</p>
+        <p class="hint-text" id="v-diag-line" style="opacity:0.6"></p>
       </section>
     </div>
   </div>
@@ -1674,6 +1675,15 @@
   syncFormatButtons();
   syncRatioButtons();
 
+  (function () {
+    var diag = document.getElementById('v-diag-line');
+    if (!diag) return;
+    var isolated = window.crossOriginIsolated === true;
+    var hasSAB = typeof SharedArrayBuffer !== 'undefined';
+    diag.textContent = 'Diagnóstico: aislamiento de origen cruzado ' + (isolated ? 'SÍ' : 'NO') +
+      ', memoria compartida ' + (hasSAB ? 'SÍ' : 'NO') + '.';
+  })();
+
   // ---------- Motor de video (FFmpeg, se carga solo al procesar) ----------
 
   var FFMPEG_SCRIPT = 'https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
@@ -1794,17 +1804,25 @@
 
         var RUN_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutos: si no termina en ese plazo, se considera atascado.
         var timeoutId = null;
+        var timedOut = false;
         var timeoutPromise = new Promise(function (resolve, reject) {
           timeoutId = setTimeout(function () {
+            timedOut = true;
             try { ffmpeg.exit(); } catch (e) {}
             ffmpegInstance = null; // fuerza recrear el motor en el próximo intento
-            reject(new Error('El procesamiento tardó más de 4 minutos y se canceló automáticamente. Tu navegador probablemente no puede con este tamaño/duración en ' + state.format.toUpperCase() + '. Prueba primero con un recorte corto (3-5 s) y un tamaño pequeño (360-480 px) para confirmar que funciona, y luego ve subiendo poco a poco.'));
+            reject(new Error('timeout'));
           }, RUN_TIMEOUT_MS);
         });
 
         var runPromise = Promise.race([ffmpeg.run.apply(ffmpeg, args), timeoutPromise]).then(
           function (v) { clearTimeout(timeoutId); return v; },
-          function (err) { clearTimeout(timeoutId); throw err; }
+          function (err) {
+            clearTimeout(timeoutId);
+            if (timedOut) {
+              throw new Error('el procesamiento tardó más de 4 minutos y se canceló automáticamente; tu navegador no está pudiendo con este video en formato ' + state.format.toUpperCase() + '. Prueba con un recorte más corto (3-5 s) y un tamaño pequeño (360 px) para confirmar si funciona en tu teléfono');
+            }
+            throw err;
+          }
         );
 
         return runPromise.then(function () {
