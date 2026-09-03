@@ -107,6 +107,7 @@
     grid-template-columns: 1fr;
     gap: 24px;
   }
+  .dual-col[hidden] { display: none; }
 
   @media (min-width: 900px) {
     .dual-col {
@@ -256,6 +257,7 @@
     cursor: grab;
   }
   .canvas-wrap canvas:active { cursor: grabbing; }
+  .canvas-wrap canvas[hidden] { display: none; }
 
   .video-wrap { background-image: none; }
   .video-wrap video {
@@ -265,6 +267,7 @@
     display: block;
     border-radius: inherit;
   }
+  .video-wrap video[hidden] { display: none; }
 
   .crop-overlay {
     position: absolute;
@@ -297,6 +300,7 @@
     color: var(--text-muted);
     padding: 0 2px;
   }
+  .meta-row[hidden] { display: none; }
   .meta-row .num { color: var(--text); }
 
   /* ---------- Controls column ---------- */
@@ -489,6 +493,7 @@
   }
 
   .progress-wrap { display: flex; flex-direction: column; gap: 6px; }
+  .progress-wrap[hidden] { display: none; }
   .progress-track {
     height: 8px;
     border-radius: 999px;
