@@ -764,6 +764,7 @@
         <div class="format-row" id="v-format-row">
           <button data-format="mp4" aria-pressed="true">MP4</button>
           <button data-format="webm">WebM</button>
+          <button data-format="webp">WebP</button>
           <button data-format="gif">GIF</button>
         </div>
         <div class="quality-row" id="v-quality-row">
@@ -1638,6 +1639,7 @@
   var FORMAT_HINTS = {
     mp4: 'MP4 (H.264) es el más compatible y el más rápido de generar.',
     webm: 'WebM conserva buena calidad a menor peso, pero tarda bastante más en generarse en el teléfono.',
+    webp: 'WebP animado pesa menos que GIF con mejor calidad, pero no todos los dispositivos lo reproducen como video — se comporta como una imagen animada, sin audio.',
     gif: 'GIF no lleva audio y pesa más cuanto más dura el recorte; la calidad no afecta al GIF.'
   };
 
@@ -1746,6 +1748,11 @@
             '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', String(crfw),
             '-deadline', 'realtime', '-cpu-used', '5',
             '-c:a', 'libopus', '-b:a', '128k', outName];
+        } else if (state.format === 'webp') {
+          var qWebp = clamp(Math.round(state.quality), 1, 100);
+          args = ['-i', inName, '-ss', ss, '-to', to, '-vf', vf + ',fps=12',
+            '-c:v', 'libwebp', '-q:v', String(qWebp), '-loop', '0',
+            '-preset', 'default', '-an', outName];
         } else {
           var vfGif = vf + ',fps=12,split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse=dither=bayer';
           args = ['-i', inName, '-ss', ss, '-to', to, '-vf', vfGif, '-an', outName];
@@ -1754,7 +1761,7 @@
         showProgress(0, 'Procesando video…');
         return ffmpeg.run.apply(ffmpeg, args).then(function () {
           var out = ffmpeg.FS('readFile', outName);
-          var mime = state.format === 'mp4' ? 'video/mp4' : state.format === 'webm' ? 'video/webm' : 'image/gif';
+          var mime = state.format === 'mp4' ? 'video/mp4' : state.format === 'webm' ? 'video/webm' : state.format === 'webp' ? 'image/webp' : 'image/gif';
           var blob = new Blob([out.buffer], { type: mime });
 
           try { ffmpeg.FS('unlink', inName); } catch (e) {}
