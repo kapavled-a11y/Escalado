@@ -1643,10 +1643,10 @@
   // ---------- Formato y calidad ----------
 
   var FORMAT_HINTS = {
-    mp4: 'MP4 (H.264) es el más compatible y el más rápido de generar.',
+    mp4: 'MP4 (H.264) es el más compatible. En videos grandes (alta resolución o varios segundos) puede tardar bastante, ya que el motor procesa sin acelaración por hardware: reducir el tamaño de salida ayuda mucho.',
     webm: 'WebM conserva buena calidad a menor peso, pero tarda bastante más en generarse en el teléfono.',
     webp: 'WebP animado pesa menos que GIF con mejor calidad, pero no todos los dispositivos lo reproducen como video — se comporta como una imagen animada, sin audio.',
-    gif: 'GIF no lleva audio y pesa más cuanto más dura el recorte; la calidad no afecta al GIF.'
+    gif: 'GIF no lleva audio y es el formato más lento de generar (procesa el video dos veces); cuanto más dure el recorte y más grande sea el tamaño, más tardará — recomendado usar recortes cortos y tamaños pequeños.'
   };
 
   function syncFormatButtons() {
@@ -1726,6 +1726,7 @@
       return;
     }
     setProcessing(true);
+    var runTicker = null;
     var loadStarted = Date.now();
     var alreadyLoaded = !!window.FFmpeg;
     showProgress(0, alreadyLoaded ? 'Preparando motor de video…' : 'Cargando motor de video (única vez, ~25 MB)…');
@@ -1777,8 +1778,37 @@
           args = ['-i', inName, '-ss', ss, '-to', to, '-vf', vfGif, '-an', outName];
         }
 
+        var runStarted = Date.now();
+        var lastKnownPct = 0;
         showProgress(0, 'Procesando video…');
-        return ffmpeg.run.apply(ffmpeg, args).then(function () {
+        runTicker = setInterval(function () {
+          var secs = Math.round((Date.now() - runStarted) / 1000);
+          var label = lastKnownPct > 0
+            ? 'Procesando video… ' + lastKnownPct + '% (' + secs + ' s)'
+            : 'Procesando video… ' + secs + ' s (los formatos MP4 y GIF pueden tardar varios minutos en videos grandes; no se ha trabado)';
+          showProgress(lastKnownPct, label);
+        }, 1000);
+        ffmpeg.setProgress(function (p) {
+          lastKnownPct = Math.round(clamp((p && p.ratio) || 0, 0, 1) * 100);
+        });
+
+        var RUN_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutos: si no termina en ese plazo, se considera atascado.
+        var timeoutId = null;
+        var timeoutPromise = new Promise(function (resolve, reject) {
+          timeoutId = setTimeout(function () {
+            try { ffmpeg.exit(); } catch (e) {}
+            ffmpegInstance = null; // fuerza recrear el motor en el próximo intento
+            reject(new Error('El procesamiento tardó más de 4 minutos y se canceló automáticamente. Tu navegador probablemente no puede con este tamaño/duración en ' + state.format.toUpperCase() + '. Prueba primero con un recorte corto (3-5 s) y un tamaño pequeño (360-480 px) para confirmar que funciona, y luego ve subiendo poco a poco.'));
+          }, RUN_TIMEOUT_MS);
+        });
+
+        var runPromise = Promise.race([ffmpeg.run.apply(ffmpeg, args), timeoutPromise]).then(
+          function (v) { clearTimeout(timeoutId); return v; },
+          function (err) { clearTimeout(timeoutId); throw err; }
+        );
+
+        return runPromise.then(function () {
+          clearInterval(runTicker);
           var out = ffmpeg.FS('readFile', outName);
           var mime = state.format === 'mp4' ? 'video/mp4' : state.format === 'webm' ? 'video/webm' : state.format === 'webp' ? 'image/webp' : 'image/gif';
           var blob = new Blob([out.buffer], { type: mime });
@@ -1805,6 +1835,7 @@
       setStatus('err', 'No se pudo generar el video (' + detail + '). Revisa tu conexión a internet (hace falta para el motor de video la primera vez) o prueba con un recorte más corto.');
     }).finally(function () {
       if (loadTicker) { clearInterval(loadTicker); loadTicker = null; }
+      if (runTicker) { clearInterval(runTicker); runTicker = null; }
       hideProgress();
       setProcessing(false);
     });
