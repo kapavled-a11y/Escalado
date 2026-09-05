@@ -573,9 +573,8 @@
 <div class="app-shell">
   <header class="page-head">
     <span class="eyebrow">Editor de imagen y video en tu navegador</span>
-    <h1>Foto a Medida</h1>
-    <p>Elige una imagen o un video de tu galería y ajusta tamaño, calidad y proporción (y en video, también el recorte de tiempo y el formato) antes de guardarlo. Todo ocurre en tu propio dispositivo — nada se envía a ningún servidor.</p>
-  </header>
+    <h1>Editor de fotos y video</h1>
+    <p>Elige una imagen o un video de tu galería y ajusta tamaño, calidad y proporción (y en video, también el recorte de tiempo y el formato) antes de guardarlo.
 
   <div class="mode-tabs" role="tablist" aria-label="Tipo de archivo">
     <button class="mode-tab" id="tab-image" role="tab" aria-selected="true">Imagen</button>
@@ -645,8 +644,8 @@
         </div>
         <div class="quick-sizes">
           <button data-longest="480">Pequeña · 480px</button>
-          <button data-longest="1080">Mediana · 1080px</button>
-          <button data-longest="1920">Grande · 1920px</button>
+          <button data-longest="800">Mediana · 800px</button>
+          <button data-longest="1024">Grande · 1024px</button>
           <button id="reset-dims">Restablecer</button>
         </div>
       </section>
@@ -758,8 +757,8 @@
           </div>
         </div>
         <div class="quick-sizes" id="trim-actions">
-          <button type="button" id="mark-start">Marcar inicio aquí</button>
-          <button type="button" id="mark-end">Marcar fin aquí</button>
+          <button type="button" id="mark-start">Marcar inicio</button>
+          <button type="button" id="mark-end">Marcar fin</button>
         </div>
         <div class="trim-bar"><div class="trim-bar-fill" id="trim-bar-fill"></div></div>
         <p class="hint-text">Duración total: <span class="num" id="video-duration">0:00</span> · Seleccionado: <span class="num" id="trim-selected">0:00</span>. Reproduce el video y toca los botones para marcar dónde empieza y termina el recorte.</p>
@@ -788,7 +787,7 @@
         </div>
         <button class="btn-ghost" id="v-reset-all-btn">Reiniciar todo</button>
         <div class="status-msg" id="video-status"></div>
-        <p class="hint-text">La primera vez que generes un video se descarga el motor de conversión (~31 MB) y hace falta conexión a internet; el procesamiento en sí ocurre en tu propio teléfono. Un recorte largo, en WebM, puede tardar varios minutos.</p>
+        <p class="hint-text">Un recorte largo, en WebM, puede tardar varios minutos.</p>
         <p class="hint-text" id="v-diag-line" style="opacity:0.6"></p>
       </section>
     </div>
